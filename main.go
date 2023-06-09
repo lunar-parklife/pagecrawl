@@ -73,7 +73,7 @@ func fetch(where string, group *sync.WaitGroup) {
 		References: referenceNodes,
 	}
 	rawAssetJson, err := json.Marshal(asset)
-	_, err = os.Stdin.Write(rawAssetJson)
+	_, err = os.Stdout.Write(rawAssetJson)
 	if err != nil {
 		log.Println(fmt.Sprintf("Error outputting asset %+v: %s", asset, err.Error()))
 		return
