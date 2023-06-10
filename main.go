@@ -77,7 +77,7 @@ func fetch(where string, group *sync.WaitGroup) {
 		Method: http.MethodGet,
 		Header: http.Header{
 			"From": {
-				//
+				viper.GetString("Network.From"),
 			},
 			"User-Agent": {
 				"pagecrawl",
