@@ -56,6 +56,7 @@ func crawl(doc *html.Node) []string {
 
 func fetch(where string, group *sync.WaitGroup) {
 	defer group.Done()
+	log.Println(fmt.Sprintf("Fetching from %s", where))
 	now := time.Now().UTC()
 	client := http.DefaultClient
 	url, err := url.Parse(where)
@@ -101,17 +102,38 @@ func fetch(where string, group *sync.WaitGroup) {
 		log.Println(fmt.Sprintf("Error outputting asset %+v: %s", asset, err.Error()))
 		return
 	}
+	log.Println(fmt.Sprintf("Sucessfully fetched %s", where))
 }
 
 func initConfig() {
 	viper.AddConfigPath(".")
-	viper.SetConfigFile("pagecrawl-config")
+	viper.SetConfigFile("pagecrawl-config.ini")
 	viper.SetConfigType("ini")
+	viper.SetDefault("Log.Path", ".")
+	viper.SetDefault("Log.Name", "pagecrawl")
 	viper.SetDefault("Network.From", "")
+	viper.SetDefault("Output.Kind", "stdout")
+	viper.SetDefault("Output.Path", "")
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Println(fmt.Sprintf("Cannot read config: %s", err.Error()))
+		viper.WriteConfig()
 	}
+}
+
+func initLog() {
+	logStart := time.Now().UTC()
+	logPath := viper.GetString("Log.Path")
+	logName := viper.GetString("Log.Name")
+	// This is evil. I'm sorry.
+	logTarget := fmt.Sprintf("%s/%s-%d-%d-%d-%d:%d.log",
+		logPath, logName,
+		logStart.Year(), logStart.Month(), logStart.Day(),
+		logStart.Hour(), logStart.Minute())
+	logFile, err := os.Create(logTarget)
+	if err != nil {
+		panic(err.Error())
+	}
+	log.SetOutput(logFile)
 }
 
 func main() {
