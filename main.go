@@ -1,3 +1,20 @@
+/*
+ *   Copyright (C) 2023  Luna
+ *
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 package main
 
 import (
@@ -13,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/spf13/viper"
 	"golang.org/x/net/html"
 )
 
@@ -51,6 +69,11 @@ func fetch(where string, group *sync.WaitGroup) {
 			"From": {
 				//
 			},
+			"User-Agent": {
+				"pagecrawl",
+				"0.1.0",
+				"https://github.com/lunar-parklife/pagecrawl",
+			},
 		},
 		URL: url,
 	})
@@ -80,7 +103,19 @@ func fetch(where string, group *sync.WaitGroup) {
 	}
 }
 
+func initConfig() {
+	viper.AddConfigPath(".")
+	viper.SetConfigFile("pagecrawl-config")
+	viper.SetConfigType("ini")
+	viper.SetDefault("Network.From", "")
+	err := viper.ReadInConfig()
+	if err != nil {
+		log.Println(fmt.Sprintf("Cannot read config: %s", err.Error()))
+	}
+}
+
 func main() {
+	initConfig()
 	input := bufio.NewScanner(os.Stdin)
 	group := &sync.WaitGroup{}
 	for input.Scan() {
