@@ -19,7 +19,9 @@ package main
 
 import (
 	"bufio"
+	_ "embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -32,6 +34,13 @@ import (
 
 	"github.com/spf13/viper"
 	"golang.org/x/net/html"
+)
+
+var (
+	//go:embed help-info.txt
+	helpInfo string
+	//go:embed license-info.txt
+	licenseInfo string
 )
 
 type Asset struct {
@@ -138,6 +147,18 @@ func initLog() {
 
 func main() {
 	initConfig()
+	initLog()
+	for _, nextFlag := range flag.Args() {
+		flag := strings.ToLower(nextFlag)
+		switch flag {
+		case "-h":
+			log.Println(helpInfo)
+		case "-l":
+			log.Println(licenseInfo)
+		case "-v":
+			log.Println("PageCrawl pre-release")
+		}
+	}
 	input := bufio.NewScanner(os.Stdin)
 	group := &sync.WaitGroup{}
 	for input.Scan() {

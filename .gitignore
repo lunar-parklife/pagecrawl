@@ -23,3 +23,5 @@ go.work
 pagecrawl
 *.ini
 *.log
+
+.DS_Store
