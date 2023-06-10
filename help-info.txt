@@ -1,1 +1,8 @@
 Crawls some number of web pages by URLs.
+
+Usage:
+Send a newline seperated list of pages to crawl through stdin.
+pagecrawl [-args]
+-h  Print this dialogue to log.
+-l  Print license information to log.
+-v  Print version information to log.

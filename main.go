@@ -163,11 +163,18 @@ func main() {
 	group := &sync.WaitGroup{}
 	for input.Scan() {
 		if input.Err() != nil {
+			if input.Err() == io.EOF {
+				break
+			}
 			log.Println(fmt.Sprintf("Error scanning input: %s", input.Err().Error()))
 			continue
 		}
+		nextLine := input.Text()
+		if nextLine == "quit" {
+			break
+		}
 		group.Add(1)
-		go fetch(input.Text(), group)
+		go fetch(nextLine, group)
 	}
 	group.Wait()
 }
