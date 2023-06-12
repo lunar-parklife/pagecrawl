@@ -63,7 +63,7 @@ func crawl(doc *html.Node) []string {
 	return buf
 }
 
-func fetch(where string, group *sync.WaitGroup) {
+func fetch(where string, group *sync.WaitGroup, shouldCache bool) {
 	defer group.Done()
 	log.Println(fmt.Sprintf("Fetching from %s", where))
 	now := time.Now().UTC()
@@ -102,8 +102,10 @@ func fetch(where string, group *sync.WaitGroup) {
 	asset := &Asset{
 		Accessed:   now,
 		Address:    where,
-		Data:       rawResponse,
 		References: referenceNodes,
+	}
+	if shouldCache {
+		asset.Data = rawResponse
 	}
 	rawAssetJson, err := json.Marshal(asset)
 	_, err = os.Stdout.Write(rawAssetJson)
@@ -148,9 +150,12 @@ func initLog() {
 func main() {
 	initConfig()
 	initLog()
+	shouldCache := false
 	for _, nextFlag := range flag.Args() {
 		flag := strings.ToLower(nextFlag)
 		switch flag {
+		case "-c":
+			shouldCache = true
 		case "-h":
 			log.Println(helpInfo)
 		case "-l":
@@ -174,7 +179,7 @@ func main() {
 			break
 		}
 		group.Add(1)
-		go fetch(nextLine, group)
+		go fetch(nextLine, group, shouldCache)
 	}
 	group.Wait()
 }
