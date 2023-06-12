@@ -19,6 +19,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"flag"
@@ -26,7 +27,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -43,11 +43,38 @@ var (
 	licenseInfo string
 )
 
-type Asset struct {
+const userAgent = "pagecrawl; 0.1.0"
+
+var (
+	shouldCache = false
+	outputs     = make([]io.Writer, 0)
+)
+
+type asset struct {
 	Accessed   time.Time `json:"accessed"`
 	Address    string    `json:"address"`
 	Data       []byte    `json:"data"`
 	References []string  `json:"references"`
+}
+
+type httpOutput struct {
+	sendTo string
+}
+
+func (this *httpOutput) Write(p []byte) (int, error) {
+	client := http.DefaultClient
+	request, err := http.NewRequest(http.MethodGet, this.sendTo, bytes.NewReader(p))
+	if err != nil {
+		log.Println(fmt.Sprintf("Cannot create output request: %s", err.Error()))
+		return 0, err
+	}
+	request.Header.Add("From", viper.GetString("Network.From"))
+	request.Header.Add("User-Agent", userAgent)
+	_, err = client.Do(request)
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
 }
 
 func crawl(doc *html.Node) []string {
@@ -63,30 +90,18 @@ func crawl(doc *html.Node) []string {
 	return buf
 }
 
-func fetch(where string, group *sync.WaitGroup, shouldCache bool) {
+func fetch(where string, group *sync.WaitGroup) {
 	defer group.Done()
 	log.Println(fmt.Sprintf("Fetching from %s", where))
 	now := time.Now().UTC()
 	client := http.DefaultClient
-	url, err := url.Parse(where)
+	request, err := http.NewRequest(http.MethodGet, where, nil)
 	if err != nil {
-		log.Println(err.Error())
-		return
+		log.Println(fmt.Sprintf("Error creating creating request for page %s: %s", where, err.Error()))
 	}
-	response, err := client.Do(&http.Request{
-		Method: http.MethodGet,
-		Header: http.Header{
-			"From": {
-				viper.GetString("Network.From"),
-			},
-			"User-Agent": {
-				"pagecrawl",
-				"0.1.0",
-				"https://github.com/lunar-parklife/pagecrawl",
-			},
-		},
-		URL: url,
-	})
+	request.Header.Add("From", viper.GetString("Network.From"))
+	request.Header.Add("User-Agent", userAgent)
+	response, err := client.Do(request)
 	if err != nil {
 		log.Println(fmt.Sprintf("Error fetching %s: %s", where, err.Error()))
 		return
@@ -99,7 +114,7 @@ func fetch(where string, group *sync.WaitGroup, shouldCache bool) {
 	}
 	doc, err := html.Parse(strings.NewReader(string(rawResponse)))
 	referenceNodes := crawl(doc)
-	asset := &Asset{
+	asset := &asset{
 		Accessed:   now,
 		Address:    where,
 		References: referenceNodes,
@@ -108,10 +123,12 @@ func fetch(where string, group *sync.WaitGroup, shouldCache bool) {
 		asset.Data = rawResponse
 	}
 	rawAssetJson, err := json.Marshal(asset)
-	_, err = os.Stdout.Write(rawAssetJson)
-	if err != nil {
-		log.Println(fmt.Sprintf("Error outputting asset %+v: %s", asset, err.Error()))
-		return
+	for _, nextOutput := range outputs {
+		_, err = nextOutput.Write(rawAssetJson)
+		if err != nil {
+			log.Println(fmt.Sprintf("Error outputting asset %+v: %s", asset, err.Error()))
+			return
+		}
 	}
 	log.Println(fmt.Sprintf("Sucessfully fetched %s", where))
 }
@@ -150,7 +167,6 @@ func initLog() {
 func main() {
 	initConfig()
 	initLog()
-	shouldCache := false
 	for _, nextFlag := range flag.Args() {
 		flag := strings.ToLower(nextFlag)
 		switch flag {
@@ -179,7 +195,7 @@ func main() {
 			break
 		}
 		group.Add(1)
-		go fetch(nextLine, group, shouldCache)
+		go fetch(nextLine, group)
 	}
 	group.Wait()
 }
