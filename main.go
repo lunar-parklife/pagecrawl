@@ -172,12 +172,36 @@ func main() {
 		switch flag {
 		case "-c":
 			shouldCache = true
+			continue
 		case "-h":
 			log.Println(helpInfo)
+			continue
 		case "-l":
 			log.Println(licenseInfo)
+			continue
 		case "-v":
 			log.Println("PageCrawl pre-release")
+			continue
+		}
+		exploded := strings.Split(flag, "=")
+		switch exploded[0] {
+		case "--out-file":
+			explodedPaths := strings.Split(exploded[1], ",")
+			for _, nextPath := range explodedPaths {
+				nextFile, err := os.OpenFile(nextPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModeAppend)
+				if err != nil {
+					log.Printf("Error opening output file %s: %s", nextPath, err.Error())
+					continue
+				}
+				outputs = append(outputs, nextFile)
+			}
+		case "--out-url":
+			explodedPaths := strings.Split(exploded[1], ",")
+			for _, nextPath := range explodedPaths {
+				outputs = append(outputs, &httpOutput{
+					sendTo: nextPath,
+				})
+			}
 		}
 	}
 	input := bufio.NewScanner(os.Stdin)
